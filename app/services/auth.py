@@ -1,50 +1,56 @@
 import calendar
 import datetime
 import jwt
+from flask import request
 
-from flask_restx import abort
-
-from app.helpers.constants import JWT_SECRET, JWT_ALGORITHM
-from app.services.user import UserService
+from app.config import BaseConfig
+from app.exceptions import InvalidCredentials, InvalidTokens
+from app.services.users import UsersService
 
 
 class AuthService:
-    def __init__(self, user_service: UserService):
+    def __init__(self, user_service: UsersService):
         self.user_service = user_service
 
-    def generate_tokens(self, username, password, is_refresh=False):
-        user = self.user_service.get_by_username(username)
+    def generate_tokens(self, email, password, is_refresh=False):
+        user = self.user_service.get_by_email(email)
 
         if user is None:
-            abort(404)
+            raise InvalidCredentials
 
         if not is_refresh:
             if not self.user_service.compare_passwords(user.password, password):
-                abort(400)
-
+                raise InvalidTokens
         data = {
-            "username": user.username,
-            "role": user.role
+            "email": user.email
         }
 
-        # 30 minutes for access_token
-        min30 = datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
-        data["exp"] = calendar.timegm(min30.timetuple())
-        access_token = jwt.encode(data, JWT_SECRET, algorithm=JWT_ALGORITHM)
+        # minutes for access_token
+        min_ = datetime.datetime.utcnow() + datetime.timedelta(minutes=BaseConfig.TOKEN_EXPIRE_MINUTES)
+        data["exp"] = calendar.timegm(min_.timetuple())
+        access_token = jwt.encode(data, BaseConfig.SECRET_KEY, algorithm=BaseConfig.JWT_ALGORITHM)
 
-        # 130 days for refresh_token
-        days130 = datetime.datetime.utcnow() + datetime.timedelta(days=130)
-        data["exp"] = calendar.timegm(days130.timetuple())
-        refresh_token = jwt.encode(data, JWT_SECRET, algorithm=JWT_ALGORITHM)
+        # days for refresh_token
+        days_ = datetime.datetime.utcnow() + datetime.timedelta(days=BaseConfig.TOKEN_EXPIRE_DAYS)
+        data["exp"] = calendar.timegm(days_.timetuple())
+        refresh_token = jwt.encode(data, BaseConfig.SECRET_KEY, algorithm=BaseConfig.JWT_ALGORITHM)
 
         return {"access_token": access_token, "refresh_token": refresh_token}
 
     def approve_refresh_token(self, refresh_token):
-        data = jwt.decode(jwt=refresh_token, key=JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        username = data.get('username')
-        user = self.user_service.get_by_username(username)
+        data = jwt.decode(jwt=refresh_token, key=BaseConfig.SECRET_KEY, algorithms=[BaseConfig.JWT_ALGORITHM])
+        email = data.get('email')
+        user = self.user_service.get_by_email(email)
         if user is None:
-            abort(404)
+            raise InvalidCredentials
 
-        return self.generate_tokens(username, user.password, is_refresh=True)
+        return self.generate_tokens(email, user.password, is_refresh=True)
 
+    def get_id_from_token(self):
+        data = request.headers["Authorization"]
+        token = data.split("Bearer ")[-1]
+        user_data = jwt.decode(token, BaseConfig.SECRET_KEY,
+                               algorithms=[BaseConfig.JWT_ALGORITHM])
+        user = self.user_service.get_by_email(user_data["email"])
+
+        return user.id

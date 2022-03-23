@@ -1,68 +1,40 @@
-from flask import request
-from flask_restx import Resource, Namespace
+from http import HTTPStatus
+
+from flask_restx import Resource, Namespace, reqparse
 
 from app.implemented import movie_service
-from app.dao.models.movie import MovieSchema, Movie
-from app.helpers.decorators import auth_required, admin_required
+from app.dao.models.movie import MovieSchema
 
 movies_ns = Namespace('movies')
+
+parser = reqparse.RequestParser()
+parser.add_argument("page", type=int)
+parser.add_argument("status", type=str)
 
 
 @movies_ns.route('/')
 class MoviesView(Resource):
-    @auth_required
+    @movies_ns.response(int(HTTPStatus.OK), 'OK')
     def get(self):
-        all_movies = Movie.query.filter_by(**request.args).all()
+        """Get all movies"""
+        req_args = parser.parse_args()
 
-        if all_movies:
-            res = MovieSchema(many=True).dump(all_movies)
-            return res, 200
+        if any(req_args.values()):
+            filtered_movies = movie_service.get_filter_movies(req_args)
+            return MovieSchema(many=True).dump(filtered_movies), HTTPStatus.OK
         else:
-            return "", 404
-
-    @admin_required
-    def post(self):
-        req_json = request.json
-        movie = movie_service.create(req_json)
-
-        return "", 201, {"location": f"/movies/{movie.id}"}
+            movies = movie_service.get_all()
+            return MovieSchema(many=True).dump(movies), HTTPStatus.OK
 
 
-@movies_ns.route('/<int:id>')
+@movies_ns.route('/<int:movie_id>/')
 class MovieView(Resource):
-    @auth_required
-    def get(self, id):
-        movie = movie_service.get_one(id)
-        if movie:
-            movie_schema = MovieSchema()
-            return movie_schema.dump(movie), 200
-        else:
-            return "", 404
-
-    @admin_required
-    def put(self, id):
-        if id:
-            req_json = request.json
-            req_json["id"] = id
-            movie_service.update(req_json)
-            return "", 204
-        else:
-            return "", 404
-
-    @admin_required
-    def patch(self, id):
-        if id:
-            req_json = request.json
-            req_json["id"] = id
-            movie_service.update_partial(req_json)
-            return "", 204
-        else:
-            return "", 404
-
-    @admin_required
-    def delete(self, id):
-        if id:
-            movie_service.delete(id)
-            return "", 204
-        else:
-            return "", 404
+    @movies_ns.response(int(HTTPStatus.OK), 'OK')
+    @movies_ns.response(int(HTTPStatus.NOT_FOUND), 'Movie not found')
+    def get(self, movie_id: int):
+        """Get movie by id"""
+        try:
+            movie = movie_service.get_one(movie_id)
+            return MovieSchema().dump(movie), HTTPStatus.OK
+        except NameError:
+            raise HTTPStatus.NOT_FOUND

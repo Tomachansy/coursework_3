@@ -1,43 +1,33 @@
+from sqlalchemy import desc
+from sqlalchemy.orm import scoped_session
+
 from app.dao.models.movie import Movie
+from app.exceptions import MovieNotFound
 
 
 class MovieDAO:
-    def __init__(self, session):
+    def __init__(self, session: scoped_session):
         self.session = session
 
     def get_all(self):
         entity_list = self.session.query(Movie).all()
-        return entity_list
+        try:
+            return entity_list
+        except NameError:
+            raise MovieNotFound
 
-    def get_by_director_id(self, val):
-        return self.session.query(Movie).filter(Movie.director_id == val).all()
+    def get_one(self, pk):
+        entity_list = self.session.query(Movie).filter(Movie.id == pk).one_or_none()
+        try:
+            return entity_list
+        except NameError:
+            raise MovieNotFound
 
-    def get_by_genre_id(self, val):
-        return self.session.query(Movie).filter(Movie.genre_id == val).all()
-
-    def get_by_year(self, val):
-        return self.session.query(Movie).filter(Movie.year == val).all()
-
-    def get_one(self, mid):
-        entity_list = self.session.query(Movie).get(mid)
-        return entity_list
-
-    def create(self, data):
-        movie = Movie(**data)
-
-        self.session.add(movie)
-        self.session.commit()
-
-        return movie
-
-    def update(self, movie):
-        self.session.add(movie)
-        self.session.commit()
-
-        return movie
-
-    def delete(self, mid):
-        movie = self.get_one(mid)
-
-        self.session.delete(movie)
-        self.session.commit()
+    def get_filter(self, limit, offset, status):
+        if limit > 0 and status == "new":
+            return self.session.query(Movie).order_by(desc(Movie.year)).limit(limit).offset(offset).all()
+        if limit > 0:
+            return self.session.query(Movie).limit(limit).offset(offset).all()
+        if status == "new":
+            return self.session.query(Movie).order_by(desc(Movie.year)).all()
+        raise MovieNotFound

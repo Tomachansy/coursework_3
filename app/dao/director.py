@@ -1,34 +1,23 @@
+from sqlalchemy.orm import scoped_session
+
 from app.dao.models.director import Director
+from app.exceptions import DirectorNotFound
 
 
 class DirectorDAO:
-    def __init__(self, session):
+    def __init__(self, session: scoped_session):
         self.session = session
 
     def get_all(self):
         entity_list = self.session.query(Director).all()
-        return entity_list
+        try:
+            return entity_list
+        except NameError:
+            raise DirectorNotFound
 
-    def get_one(self, did):
-        entity_list = self.session.query(Director).get(did)
-        return entity_list
-
-    def create(self, data):
-        director = Director(**data)
-
-        self.session.add(director)
-        self.session.commit()
-
-        return director
-
-    def update(self, director):
-        self.session.add(director)
-        self.session.commit()
-
-        return director
-
-    def delete(self, did):
-        director = self.get_one(did)
-
-        self.session.delete(director)
-        self.session.commit()
+    def get_one(self, pk):
+        entity_list = self.session.query(Director).filter(Director.id == pk).one_or_none()
+        try:
+            return entity_list
+        except NameError:
+            raise DirectorNotFound

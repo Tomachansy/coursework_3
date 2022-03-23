@@ -1,7 +1,7 @@
 import jwt
 from flask import request, abort
 
-from app.helpers.constants import JWT_SECRET, JWT_ALGORITHM
+from app.config import BaseConfig
 
 
 def auth_required(func):
@@ -13,7 +13,7 @@ def auth_required(func):
         token = data.split("Bearer ")[-1]
 
         try:
-            jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            jwt.decode(token, BaseConfig.SECRET_KEY, algorithms=[BaseConfig.JWT_ALGORITHM])
         except Exception as e:
             print("JWT Decode Exception", e)
             abort(401)
@@ -33,7 +33,7 @@ def admin_required(func):
         role = None
 
         try:
-            user = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            user = jwt.decode(token, BaseConfig.SECRET_KEY, algorithms=[BaseConfig.JWT_ALGORITHM])
             role = user.get("role", "user")
         except Exception as e:
             print("JWT Decode Exception", e)
