@@ -45,12 +45,3 @@ class AuthService:
             raise InvalidCredentials
 
         return self.generate_tokens(email, user.password, is_refresh=True)
-
-    def get_id_from_token(self):
-        data = request.headers["Authorization"]
-        token = data.split("Bearer ")[-1]
-        user_data = jwt.decode(token, BaseConfig.SECRET_KEY,
-                               algorithms=[BaseConfig.JWT_ALGORITHM])
-        user = self.user_service.get_by_email(user_data["email"])
-
-        return user.id

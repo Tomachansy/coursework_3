@@ -2,6 +2,7 @@ import jwt
 from flask import request, abort
 
 from app.config import BaseConfig
+from app.implemented import user_service
 
 
 def auth_required(func):
@@ -13,12 +14,13 @@ def auth_required(func):
         token = data.split("Bearer ")[-1]
 
         try:
-            jwt.decode(token, BaseConfig.SECRET_KEY, algorithms=[BaseConfig.JWT_ALGORITHM])
+            user_data = jwt.decode(token, BaseConfig.SECRET_KEY, algorithms=[BaseConfig.JWT_ALGORITHM])
+            user = user_service.get_by_email(user_data["email"])
         except Exception as e:
             print("JWT Decode Exception", e)
             abort(401)
 
-        return func(*args, **kwargs)
+        return func(*args, **kwargs, user_id=user.id)
 
     return wrapper
 

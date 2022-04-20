@@ -16,9 +16,8 @@ class UsersView(Resource):
     @users_ns.response(int(HTTPStatus.OK), 'OK')
     @users_ns.response(int(HTTPStatus.BAD_REQUEST), 'Invalid json message received')
     @users_ns.response(int(HTTPStatus.NOT_FOUND), 'User not found')
-    def get(self):
+    def get(self, user_id: int):
         """Get users profile"""
-        user_id = auth_service.get_id_from_token()
 
         if user_id:
             user = user_service.get_one(user_id)
@@ -31,12 +30,12 @@ class UsersView(Resource):
         else:
             raise HTTPStatus.NOT_FOUND
 
+    @auth_required
     @users_ns.response(int(HTTPStatus.NO_CONTENT), 'User information changed')
-    def patch(self):
+    def patch(self, user_id: int):
         """Change users information"""
         data = request.json
         if data:
-            user_id = auth_service.get_id_from_token()
             user = user_service.get_one(user_id)
             data["id"] = user_id
             UserSchema().dump(user_service.update_user(data, user))
@@ -55,12 +54,11 @@ class UserPatchView(Resource):
     @users_ns.response(int(HTTPStatus.OK), 'OK')
     @users_ns.response(int(HTTPStatus.NO_CONTENT), 'Password changed')
     @users_ns.response(int(HTTPStatus.BAD_REQUEST), 'Invalid json message received')
-    def put(self):
+    def put(self, user_id: int):
         """Change users password"""
         data = request.json
 
         if data:
-            user_id = auth_service.get_id_from_token()
             user = user_service.get_one(user_id)
             data["id"] = user_id
             UserSchema().dump(user_service.update_password(data, user))
