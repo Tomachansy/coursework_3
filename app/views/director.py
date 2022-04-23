@@ -23,17 +23,14 @@ class DirectorsView(Resource):
             raise HTTPStatus.NOT_FOUND
 
 
-@directors_ns.route('/<int:id>/')
+@directors_ns.route('/<int:director_id>/')
 class DirectorView(Resource):
     @directors_ns.response(int(HTTPStatus.OK), 'OK')
     @directors_ns.response(int(HTTPStatus.NOT_FOUND), 'Director not found')
     def get(self, director_id: int):
         """Get director by id"""
-        director = director_service.get_one(director_id)
-
-        if director:
-            director_schema = DirectorSchema()
-            return director_schema.dump(director), HTTPStatus.OK
-        else:
+        try:
+            director = director_service.get_one(director_id)
+            return DirectorSchema().dump(director), HTTPStatus.OK
+        except NameError:
             raise HTTPStatus.NOT_FOUND
-

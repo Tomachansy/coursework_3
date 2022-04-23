@@ -23,16 +23,14 @@ class GenresView(Resource):
             raise HTTPStatus.NOT_FOUND
 
 
-@genres_ns.route('/<int:id>/')
+@genres_ns.route('/<int:genre_id>/')
 class GenreView(Resource):
     @genres_ns.response(int(HTTPStatus.OK), 'OK')
     @genres_ns.response(int(HTTPStatus.NOT_FOUND), 'Genre not found')
     def get(self, genre_id: int):
         """Get genre by id"""
-        genre = genre_service.get_one(genre_id)
-
-        if genre:
-            genre_schema = GenreSchema()
-            return genre_schema.dump(genre), HTTPStatus.OK
-        else:
+        try:
+            genre = genre_service.get_one(genre_id)
+            return GenreSchema().dump(genre), HTTPStatus.OK
+        except NameError:
             raise HTTPStatus.NOT_FOUND
